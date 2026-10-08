@@ -934,8 +934,7 @@ function downloadCSVTemplate() {
   const precios = [175000,160000,180000,200000,165000,185000,175000,195000,150000,170000,178000,162000,205000,155000,168000,188000,162000,178000,170000,188000,175000,160000,180000,200000,165000,185000,175000,195000,150000,170000,178000,162000,205000,155000,168000,188000,162000,178000,170000,188000,175000,160000,180000,200000,165000,185000,175000,195000,150000,170000,178000,162000,205000,155000,168000,188000,162000];
   const rows = ['numero,area_m2,precio,estado'];
   for(let i=1;i<=58;i++) rows.push(`${i},${areas[i-1]||112},${precios[i-1]||175000},Disponible`);
-  const blob = new Blob([rows.join('
-')],{type:'text/csv'});
+  const blob = new Blob([rows.join('\n')],{type:'text/csv'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'lotes_altos_buena_vista.csv';
@@ -1289,8 +1288,7 @@ async function exportCSV(){
     toast('Selecciona la pestaña de Pagos o Promesas del proyecto para exportar',false);
     return;
   }
-  const blob=new Blob([rows.join('
-')],{type:'text/csv'});
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
   toast('✓ CSV exportado');
 }
