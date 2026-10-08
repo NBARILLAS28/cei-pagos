@@ -946,8 +946,7 @@ async function importCSV() {
   const file = document.getElementById('csv-file').files[0];
   if(!file){toast('Selecciona un archivo CSV',false);return;}
   const text = await file.text();
-  const lines = text.trim().split('
-').slice(1);
+  const lines = text.trim().split('\n').slice(1);
   const rows = lines.map(l=>{
     const [numero,area_m2,precio,estado]=l.split(',');
     return {proyecto_id:currentProyecto.id, numero:parseInt(numero), area_m2:parseFloat(area_m2)||null, precio:parseFloat(precio)||null, estado:estado?.trim()||'Disponible'};
