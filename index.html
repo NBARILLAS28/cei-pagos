@@ -720,7 +720,7 @@ async function loadDashboard() {
     sb.from('proyectos').select('*').eq('estado','Activo'),
     sb.from('promesas').select('id,estado',{count:'exact'}),
     sb.from('pagos').select('*',{count:'exact',head:true}).eq('estado','Vencida'),
-    sb.from('pagos').select('monto,estado,created_at,fecha_pago,promesas(lote,clientes(nombre),proyectos(nombre))').order('created_at',{ascending:false}).limit(6),
+    sb.from('pagos').select('monto,estado,created_at,fecha_pago,promesas(lote,proyecto_id,clientes(nombre))').order('created_at',{ascending:false}).limit(6),
     sb.from('lotes').select('estado'),
   ]);
 
@@ -1068,22 +1068,44 @@ async function cyclePromesa(id,est){
 
 // ─── PAGOS ────────────────────────────────────────────────────────────────
 async function loadPagosDetalle(proyId) {
+  const wrap = document.getElementById('tbl-ppagos-wrap');
+  wrap.innerHTML = '<div class="loading"><div class="spin"></div></div>';
   const {data:pIds} = await sb.from('promesas').select('id').eq('proyecto_id',proyId);
   const ids = (pIds||[]).map(p=>p.id);
-  if(!ids.length){document.getElementById('tbl-ppagos-wrap').innerHTML='<div class="empty"><p>Sin pagos.</p></div>';return;}
-  const {data} = await sb.from('pagos').select('*,promesas(numero,lote,clientes(nombre))').in('promesa_id',ids).order('created_at',{ascending:false});
+  if(!ids.length){wrap.innerHTML='<div class="empty"><p>Sin pagos registrados en este proyecto.</p></div>';return;}
+  const {data,error} = await sb.from('pagos').select('*,promesas(numero,lote,clientes(nombre))').in('promesa_id',ids).order('created_at',{ascending:false});
+  if(error){wrap.innerHTML=`<div class="empty"><p style="color:var(--red)">Error: ${error.message}</p></div>`;return;}
   renderPagosTable('tbl-ppagos-wrap','tbl-ppagos',data||[]);
 }
 
 async function loadPagosG() {
-  const {data} = await sb.from('pagos').select('*,promesas(numero,lote,clientes(nombre),proyectos(nombre))').order('created_at',{ascending:false}).limit(150);
+  const wrap = document.getElementById('tbl-pg-wrap');
+  wrap.innerHTML = '<div class="loading"><div class="spin"></div></div>';
+  // Asegurar que proyectosList esté cargado (por si se navega directo a pagos)
+  if(!proyectosList.length){
+    const {data:proy}=await sb.from('proyectos').select('*');
+    proyectosList=proy||[];
+  }
+  // Traemos pagos con promesas; el nombre del proyecto lo resolvemos desde proyectosList
+  const {data, error} = await sb.from('pagos')
+    .select('*,promesas(numero,lote,proyecto_id,clientes(nombre))')
+    .order('created_at',{ascending:false}).limit(150);
+  if(error){
+    wrap.innerHTML=`<div class="empty"><p style="color:var(--red)">Error al cargar pagos: ${error.message}</p></div>`;
+    return;
+  }
+  // Resolver nombre de proyecto desde proyectosList (ya cargado en loadDashboard)
+  const pagos = (data||[]).map(p=>({
+    ...p,
+    _proyectoNombre: proyectosList.find(x=>x.id===p.promesas?.proyecto_id)?.nombre || '—'
+  }));
   const now = new Date();
   const mes = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  document.getElementById('pg-total').textContent = (data||[]).length;
-  document.getElementById('pg-pagadas').textContent = (data||[]).filter(p=>p.estado==='Pagada').length;
-  document.getElementById('pg-venc').textContent = (data||[]).filter(p=>p.estado==='Vencida').length;
-  document.getElementById('pg-mes').textContent = fmtQ((data||[]).filter(p=>p.fecha_pago?.startsWith(mes)&&p.estado==='Pagada').reduce((s,p)=>s+(p.monto||0),0));
-  renderPagosTable('tbl-pg-wrap','tbl-pg',data||[],true);
+  document.getElementById('pg-total').textContent = pagos.length;
+  document.getElementById('pg-pagadas').textContent = pagos.filter(p=>p.estado==='Pagada').length;
+  document.getElementById('pg-venc').textContent = pagos.filter(p=>p.estado==='Vencida').length;
+  document.getElementById('pg-mes').textContent = fmtQ(pagos.filter(p=>p.fecha_pago?.startsWith(mes)&&p.estado==='Pagada').reduce((s,p)=>s+(p.monto||0),0));
+  renderPagosTable('tbl-pg-wrap','tbl-pg',pagos,true);
 }
 
 function renderPagosTable(wrapId,tblId,data,showProyecto=false) {
@@ -1096,7 +1118,7 @@ function renderPagosTable(wrapId,tblId,data,showProyecto=false) {
     ${data.map(p=>`<tr>
       <td class="td-name">${p.promesas?.clientes?.nombre||'—'}</td>
       <td class="td-m">${p.promesas?.lote||'—'}</td>
-      ${showProyecto?`<td class="td-m">${p.promesas?.proyectos?.nombre||'—'}</td>`:''}
+      ${showProyecto?`<td class="td-m">${p._proyectoNombre||p.promesas?.proyectos?.nombre||'—'}</td>`:''}
       <td class="td-mono">${p.promesas?.numero||'—'}</td>
       <td class="td-mono">${p.num_cuota}</td>
       <td style="font-weight:600">${fmtQ(p.monto)}</td>
@@ -1156,7 +1178,10 @@ async function cyclePago(id,est){
   const ests=['Pagada','Vencida','Pendiente'];
   const nuevo=ests[(ests.indexOf(est)+1)%ests.length];
   const {error}=await sb.from('pagos').update({estado:nuevo}).eq('id',id);
-  if(!error) toast('→ '+nuevo);
+  if(error){toast('Error: '+error.message,false);return;}
+  toast('→ '+nuevo);
+  if(currentProyecto) loadPagosDetalle(currentProyecto.id);
+  else loadPagosG();
 }
 async function delPago(id){
   if(!confirm('¿Eliminar pago?')) return;
@@ -1166,7 +1191,7 @@ async function delPago(id){
 
 // ─── CLIENTES ─────────────────────────────────────────────────────────────
 async function loadClientes(){
-  const {data}=await sb.from('clientes').select('*,promesas(lote,proyectos(nombre))').order('created_at',{ascending:false});
+  const {data}=await sb.from('clientes').select('*,promesas(lote,proyecto_id)').order('created_at',{ascending:false});
   const wrap=document.getElementById('tbl-cli-wrap');
   if(!data?.length){wrap.innerHTML='<div class="empty"><p>Sin clientes registrados.</p></div>';return;}
   wrap.innerHTML=`<table id="tbl-cli"><thead><tr><th>Nombre</th><th>DPI</th><th>Teléfono</th><th>Email</th><th>Proyectos / Lotes</th></tr></thead><tbody>
