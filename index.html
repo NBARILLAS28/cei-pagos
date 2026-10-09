@@ -1070,261 +1070,289 @@ async function printPromesa(id) {
   const {data:p, error} = await sb.from('promesas')
     .select('*,clientes(*)')
     .eq('id',id).single();
-  if(error||!p){toast('Error al cargar la promesa',false);return;}
+  if(error||!p){toast('Error cargando promesa: '+(error?.message||'sin datos'),false);return;}
 
-  // Helpers de formato
-  const fmtMonto = n => {
-    if(!n && n!==0) return 'Q. ---';
-    return 'Q.' + Number(n).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2});
-  };
-  const numToLetras = n => {
-    // Convierte número a texto en español (simplificado para montos comunes)
-    const unidades = ['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE',
-      'DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE'];
-    const decenas = ['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
-    const centenas = ['','CIEN','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
-    const num = Math.round(n);
-    if(num===0) return 'CERO';
-    let txt = '';
-    if(num>=1000){
-      const miles=Math.floor(num/1000);
-      txt += (miles===1?'MIL ':numToLetras(miles)+' MIL ');
-    }
-    const resto = num%1000;
-    if(resto>=100){ txt += centenas[Math.floor(resto/100)]; if(resto%100) txt+=' '; }
-    const r2=resto%100;
-    if(r2>0){
-      if(r2<20) txt+=unidades[r2];
-      else{ txt+=decenas[Math.floor(r2/10)]; if(r2%10) txt+=' Y '+unidades[r2%10]; }
-    }
-    return txt.trim();
-  };
-  const mesToLetras = m => {
-    const meses = {
-      '01':'ENERO','02':'FEBRERO','03':'MARZO','04':'ABRIL','05':'MAYO','06':'JUNIO',
-      '07':'JULIO','08':'AGOSTO','09':'SEPTIEMBRE','10':'OCTUBRE','11':'NOVIEMBRE','12':'DICIEMBRE',
-      '1':'ENERO','2':'FEBRERO','3':'MARZO','4':'ABRIL','5':'MAYO','6':'JUNIO',
-      '7':'JULIO','8':'AGOSTO','9':'SEPTIEMBRE'
-    };
-    if(!m) return '___________';
-    // m puede ser "2026-09" o "Septiembre" o "09"
-    const parts = String(m).split('-');
-    const key = parts.length>1 ? parts[1] : m;
-    return meses[key] || String(m).toUpperCase();
-  };
-  const anioLetras = a => {
-    const anios = {
-      '2024':'DOS MIL VEINTICUATRO','2025':'DOS MIL VEINTICINCO',
-      '2026':'DOS MIL VEINTISEIS','2027':'DOS MIL VEINTISIETE',
-      '2028':'DOS MIL VEINTIOCHO','2029':'DOS MIL VEINTINUEVE','2030':'DOS MIL TREINTA'
-    };
-    return anios[String(a)] || String(a);
-  };
-  const fechaContrato = p.fecha_contrato ? new Date(p.fecha_contrato+'T12:00:00') : new Date();
-  const diaNum = fechaContrato.getDate();
-  const mesNom = mesToLetras(String(fechaContrato.getMonth()+1).padStart(2,'0'));
-  const anioNum = fechaContrato.getFullYear();
-  const diaLetras = ['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ',
-    'ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE',
-    'VEINTIUNO','VEINTIDÓS','VEINTITRÉS','VEINTICUATRO','VEINTICINCO','VEINTISÉIS','VEINTISIETE',
-    'VEINTIOCHO','VEINTINUEVE','TREINTA','TREINTA Y UNO'][diaNum] || String(diaNum);
+  // ── Helpers ──
+  const Q = n => n ? 'Q.' + Number(n).toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2}) : 'Q. ---';
+  const MESES = {'01':'ENERO','02':'FEBRERO','03':'MARZO','04':'ABRIL','05':'MAYO','06':'JUNIO',
+    '07':'JULIO','08':'AGOSTO','09':'SEPTIEMBRE','10':'OCTUBRE','11':'NOVIEMBRE','12':'DICIEMBRE'};
+  const mesLetra = m => { if(!m) return '___________'; const k=String(m).split('-'); return MESES[k.length>1?k[1]:String(m).padStart(2,'0')] || String(m).toUpperCase(); };
+  const ANIOS = {'2024':'DOS MIL VEINTICUATRO','2025':'DOS MIL VEINTICINCO','2026':'DOS MIL VEINTISEIS',
+    '2027':'DOS MIL VEINTISIETE','2028':'DOS MIL VEINTIOCHO','2029':'DOS MIL VEINTINUEVE','2030':'DOS MIL TREINTA'};
+  const anioL = a => ANIOS[String(a)] || String(a);
+  const DIAS_L = ['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ',
+    'ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE',
+    'VEINTIUNO','VEINTIDOS','VEINTITRES','VEINTICUATRO','VEINTICINCO','VEINTISEIS','VEINTISIETE',
+    'VEINTIOCHO','VEINTINUEVE','TREINTA','TREINTA Y UNO'];
 
   const cliente = p.clientes || {};
-  const proyNombre = proyectosList.find(x=>x.id===p.proyecto_id)?.nombre || 'ALTOS DE BUENA VISTA';
+  const proyNombre = (proyectosList.find(x=>x.id===p.proyecto_id)?.nombre || 'ALTOS DE BUENA VISTA').toUpperCase();
   const loteNum = p.lote ? String(p.lote).replace(/[^0-9]/g,'') : '___';
-  const areaTxt = p.area_m2 ? `${p.area_m2}.00 Metros Cuadrados` : '___________';
-
-  // Plan de pago en texto
+  const area = p.area_m2 ? `${p.area_m2}.00 Metros Cuadrados` : '___________';
   const plazo = p.plazo_meses || 0;
   const cuota = p.cuota_mensual || 0;
-  const ultima = p.ultima_cuota || cuota;
+  const ultima = p.ultima_cuota && p.ultima_cuota !== cuota ? p.ultima_cuota : null;
   const tasa = p.tasa_interes || 0;
-  const saldo = p.saldo || 0;
-  const mesInicioTxt = mesToLetras(p.mes_inicio);
-  const anioInicio = p.mes_inicio ? p.mes_inicio.split('-')[0] : anioNum;
   const d1 = p.dia_inicio_pago || 25;
   const d2 = p.dia_fin_pago || 30;
+  const mesIni = mesLetra(p.mes_inicio);
+  const anioIni = p.mes_inicio ? p.mes_inicio.split('-')[0] : new Date().getFullYear();
+  const fc = p.fecha_contrato ? new Date(p.fecha_contrato+'T12:00:00') : new Date();
+  const diaNum = fc.getDate();
+  const mesNom = MESES[String(fc.getMonth()+1).padStart(2,'0')];
+  const anioNum = fc.getFullYear();
+  const diaL = DIAS_L[diaNum] || String(diaNum);
 
-  let planTxt = '';
-  if(tasa>0){
-    planTxt = `EL SALDO A PAGAR MÁS SUS INTERESES SE PAGARÁ EN ${plazo} MESES PLAZO, MEDIANTE ${plazo} CUOTAS NIVELADAS MENSUALES (CAPITAL MÁS INTERESES) DE LA SIGUIENTE MANERA: ${plazo-1} CUOTAS POR LA CANTIDAD DE ${fmtMonto(cuota)} CADA UNA; Y 1 ULTIMA CUOTA POR LA CANTIDAD DE ${fmtMonto(ultima)}. DEBIENDO CANCELAR LAS CUOTAS DEL DÍA ${d1} AL ${d2} DE CADA MES, A PARTIR DEL MES DE ${mesInicioTxt} DE ${anioLetras(anioInicio)}. LOS PAGOS SE REALIZARÁN POR MEDIO DE DEPÓSITOS BANCARIOS, TRANSFERENCIAS ELECTRÓNICAS O CUALQUIER OTRO MEDIO DE PAGO, QUE LA PROMITENTE VENDEDORA PONGA A DISPOSICIÓN DEL PROMITENTE COMPRADOR.`;
-  } else {
-    planTxt = `EL SALDO A PAGAR SIN INTERESES SE PAGARÁ EN ${plazo} MESES PLAZO, MEDIANTE ${plazo} CUOTAS NIVELADAS MENSUALES (SIN INTERESES) DE LA SIGUIENTE MANERA: ${plazo-1} CUOTAS POR LA CANTIDAD DE ${fmtMonto(cuota)} CADA UNA; Y 1 ULTIMA CUOTA POR LA CANTIDAD DE ${fmtMonto(ultima)}. DEBIENDO CANCELAR LAS CUOTAS DEL DÍA ${d1} AL ${d2} DE CADA MES, A PARTIR DEL MES DE ${mesInicioTxt} DE ${anioLetras(anioInicio)}. LOS PAGOS SE REALIZARÁN POR MEDIO DE DEPÓSITOS BANCARIOS, TRANSFERENCIAS ELECTRÓNICAS O CUALQUIER OTRO MEDIO DE PAGO, QUE LA PROMITENTE VENDEDORA PONGA A DISPOSICIÓN DEL PROMITENTE COMPRADOR.`;
-  }
+  // Texto plan de pago — con negrillas en números clave igual que el doc original
+  const intereses = tasa > 0;
+  const cuotasN = plazo - 1;
+  const ultimaQ = ultima ? Q(ultima) : Q(cuota);
+  const tipoSaldo = intereses ? 'MÁS SUS INTERESES' : 'SIN INTERESES';
+  const tipoCuota = intereses ? '(CAPITAL MÁS INTERESES)' : '(SIN INTERESES)';
 
-  const precioLetras = numToLetras(Math.floor(p.precio||0));
-  const precioStr = `(${precioLetras} QUETZALES EXACTOS)`;
+  const planHTML = `EL SALDO A PAGAR ${tipoSaldo} SE PAGARÁ EN <b>${plazo}</b> MESES PLAZO, MEDIANTE <b>${plazo}</b> CUOTAS NIVELADAS MENSUALES ${tipoCuota} DE LA SIGUIENTE MANERA: <b>${cuotasN}</b> CUOTAS POR LA CANTIDAD DE <b>${Q(cuota)}</b> CADA UNA; Y <b>1</b> ULTIMA CUOTA POR LA CANTIDAD DE <b>${ultimaQ}</b>. DEBIENDO CANCELAR LAS CUOTAS DEL DÍA <b>${d1}</b> AL <b>${d2}</b> DE CADA MES, A PARTIR DEL MES DE <b>${mesIni}</b> DE <b>${anioL(anioIni)}</b>. LOS PAGOS SE REALIZARÁN POR MEDIO DE DEPÓSITOS BANCARIOS, TRANSFERENCIAS ELECTRÓNICAS O CUALQUIER OTRO MEDIO DE PAGO, QUE LA PROMITENTE VENDEDORA PONGA A DISPOSICIÓN DEL PROMITENTE COMPRADOR.`;
+
+  const arrasHTML = `EN CASO DE QUE EL PROMITENTE COMPRADOR RESCINDA LA PRESENTE PROMESA DE COMPRAVENTA DE BIEN INMUEBLE, PERDERA A FAVOR DE LA PROMITENTE VENDEDORA, EN CONCEPTO DE ARRAS, LA TOTALIDAD DE LO QUE HASTA ESE MOMENTO HAYA CANCELADO, SIN TENER DERECHO A DEVOLUCIÓN DE DINERO NI A NINGÚN TIPO DE INDEMNIZACIÓN. AMBAS PARTES, PROMITENTE Y PROMISARIO, ACEPTAN TODAS Y CADA UNA DE LAS CONDICIONES QUE SE ENCUENTRAN EN ESTE DOCUMENTO PROVISIONAL, HASTA QUE EL PROMISARIO ELEVE A ESCRITURA PUBLICA ESTE CONTRATO EN FORMA DEFINITIVA. EN FE DE LO CUAL, FIRMAN DE CONFORMIDAD EL PRESENTE DOCUMENTO, EL DIA <b>${diaL} DE ${mesNom}</b> DEL <b>AÑO ${anioL(anioNum)}</b>.`;
+
+  const nombreCliente = (cliente.nombre||'').toUpperCase();
+  const dpiCliente = cliente.dpi || '________________________________';
 
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Promesa de Compraventa — ${cliente.nombre||''} — Lote ${loteNum}</title>
+<title>Promesa — ${nombreCliente} — Lote ${loteNum}</title>
 <style>
-  @page{size:letter;margin:2cm 2.2cm}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Times New Roman',serif;font-size:10.5pt;color:#000;background:#fff}
-  .doc{max-width:750px;margin:0 auto}
-  h1{text-align:center;font-size:13pt;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-  h2{text-align:center;font-size:10pt;font-weight:bold;text-transform:uppercase;margin-bottom:12px}
-  table{width:100%;border-collapse:collapse;margin-bottom:10px}
-  td,th{border:1px solid #000;padding:4px 7px;font-size:10pt;vertical-align:top}
-  th{background:#e8e8e8;font-weight:bold;text-align:center;font-size:9.5pt}
-  .hdr-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:2px solid #000;padding-bottom:6px}
-  .hdr-title{font-size:16pt;font-weight:bold;text-transform:uppercase;letter-spacing:2px}
-  .hdr-no{font-size:10pt}
-  .sec-title{background:#000;color:#fff;font-weight:bold;text-align:center;padding:4px;font-size:10pt;text-transform:uppercase;margin:8px 0 6px}
-  .lbl{font-weight:bold;width:38%;font-size:9.5pt}
-  .val{font-size:9.5pt}
-  .clause{text-align:justify;text-transform:uppercase;font-size:10pt;line-height:1.6;margin:10px 0;font-weight:bold;letter-spacing:.3px}
-  .sigs{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px;margin-bottom:20px}
-  .sig-box{text-align:center}
-  .sig-line{border-top:1px solid #000;margin-top:50px;padding-top:4px;font-size:9pt;font-weight:bold}
-  .condiciones{margin-top:16px;page-break-before:always}
-  .cond-title{text-align:center;font-size:12pt;font-weight:bold;text-transform:uppercase;margin-bottom:4px;border-bottom:2px solid #000;padding-bottom:4px}
-  .cond-sub{text-align:center;font-size:9pt;margin-bottom:10px;font-style:italic}
-  .cond-item{margin-bottom:8px;text-align:justify;font-size:9.5pt;line-height:1.55}
-  .cond-item strong{display:block;text-transform:uppercase;font-size:9.5pt}
-  .notarial{margin-top:20px;border:1px solid #000;padding:12px;font-size:10pt;text-align:justify;text-transform:uppercase;line-height:1.7;letter-spacing:.2px}
-  .notarial-title{text-align:center;font-weight:bold;text-decoration:underline;margin-bottom:8px;font-size:10.5pt}
-  .ante-mi{text-align:center;font-weight:bold;font-size:12pt;margin-top:16px}
-  .nota-sigs{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}
-  .nota-sig-box{text-align:center}
-  .nota-sig-line{border-top:1px solid #000;padding-top:4px;font-size:9pt}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@page{size:letter portrait;margin:1.8cm 2cm 1.5cm 2cm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Times New Roman',Times,serif;font-size:10pt;color:#000;background:#fff;line-height:1.35}
+.page{max-width:680px;margin:0 auto}
+
+/* Encabezado */
+.doc-header{text-align:center;margin-bottom:10px}
+.doc-header h1{font-size:14pt;font-weight:bold;text-transform:uppercase;letter-spacing:1px;border-bottom:2.5px solid #000;padding-bottom:4px;margin-bottom:4px}
+.doc-meta{display:flex;justify-content:space-between;font-size:9pt;margin-bottom:6px}
+
+/* Secciones */
+.sec-lbl{background:#000;color:#fff;font-weight:bold;font-size:9pt;text-transform:uppercase;padding:3px 8px;margin:8px 0 0}
+
+/* Tabla de datos del comprador — filas alternas */
+table.t-comprador{width:100%;border-collapse:collapse;border:1px solid #555;font-size:9.5pt}
+table.t-comprador tr td{padding:3px 7px;border-bottom:1px solid #bbb;vertical-align:middle}
+table.t-comprador tr:nth-child(even) td{background:#f1f1f1}
+table.t-comprador td.lbl{font-weight:bold;white-space:nowrap;padding-right:4px}
+table.t-comprador td.val{width:100%}
+
+/* Tabla inmueble */
+table.t-inmueble{width:100%;border-collapse:collapse;border:1px solid #555;font-size:9.5pt;margin-top:0}
+table.t-inmueble td,table.t-inmueble th{border:1px solid #888;padding:3px 7px;vertical-align:top}
+table.t-inmueble th{background:#d8d8d8;font-weight:bold;font-size:9pt;text-align:center}
+table.t-inmueble tr:nth-child(even) td{background:#f1f1f1}
+
+/* Tabla pago */
+table.t-pago{width:100%;border-collapse:collapse;border:1px solid #555;font-size:9.5pt;margin-top:0}
+table.t-pago td{padding:3px 8px;border-bottom:1px solid #ddd;vertical-align:middle}
+table.t-pago .lbl{font-weight:bold;white-space:nowrap;width:30%}
+table.t-pago .val{font-weight:bold}
+table.t-pago tr.saldo td{font-size:10pt;border-top:2px solid #000}
+table.t-pago .eng-frac td{background:#f9f9f9}
+
+/* Texto párrafos */
+.plan-txt{font-size:9.5pt;text-align:justify;margin:8px 0 6px;line-height:1.6;text-transform:uppercase}
+.otras-cond{font-size:9pt;font-weight:bold;text-decoration:underline;margin:6px 0 2px}
+.arras-txt{font-size:9.5pt;text-align:justify;line-height:1.6;text-transform:uppercase;margin-bottom:10px}
+
+/* Firmas */
+.firma-row{display:flex;justify-content:space-around;margin-top:28px;margin-bottom:6px}
+.firma-box{text-align:center;min-width:200px}
+.firma-f{font-size:11pt;margin-bottom:28px}
+.firma-nombre{border-top:1px solid #000;padding-top:3px;font-size:9pt;font-weight:bold;text-transform:uppercase;min-width:200px;display:inline-block}
+
+/* Página 2 — Condiciones Generales */
+.page2{page-break-before:always;padding-top:4px}
+.cg-title{text-align:center;font-size:12pt;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:3px}
+.cg-sub{text-align:center;font-size:8.5pt;margin-bottom:10px}
+.cg-item{text-align:justify;font-size:9pt;margin-bottom:7px;line-height:1.5}
+.cg-item b{text-transform:uppercase}
+.lista{margin-left:18px;margin-top:3px}
+.lista li{font-size:9pt;line-height:1.5}
+
+/* Acta notarial */
+.acta-wrap{border:1px solid #666;padding:10px 12px;margin-top:14px;font-size:9.5pt;text-align:justify;text-transform:uppercase;line-height:1.7}
+.acta-title{text-align:center;font-weight:bold;text-decoration:underline;font-size:10pt;margin-bottom:8px}
+.ante-mi{text-align:center;font-size:13pt;font-weight:bold;margin:14px 0 0}
+
+@media print{
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .no-print{display:none}
+}
 </style>
 </head>
 <body>
-<div class="doc">
+<div class="page">
 
-  <!-- ENCABEZADO -->
-  <div class="hdr-row">
-    <div class="hdr-title">Promesa de Compraventa</div>
-    <div class="hdr-no">
-      <strong>No.:</strong> ${p.numero||'___________'}<br>
-      <strong>Fecha:</strong> ${p.fecha_contrato ? new Date(p.fecha_contrato+'T12:00:00').toLocaleDateString('es-GT') : new Date().toLocaleDateString('es-GT')}
-    </div>
+  <!-- ══ ENCABEZADO ══ -->
+  <div class="doc-header">
+    <h1>Promesa de Compraventa</h1>
+  </div>
+  <div class="doc-meta">
+    <span><b>No.:</b> ${p.numero||'___________'}</span>
+    <span><b>Fecha:</b> ${p.fecha_contrato ? new Date(p.fecha_contrato+'T12:00:00').toLocaleDateString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric'}) : new Date().toLocaleDateString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
   </div>
 
-  <!-- DATOS DEL COMPRADOR -->
-  <div class="sec-title">Datos Generales del Promitente Comprador</div>
-  <table>
-    <tr><td class="lbl">Nombres y Apellidos</td><td class="val">${(cliente.nombre||'').toUpperCase()}</td></tr>
-    <tr><td class="lbl">Dirección</td><td class="val">${(cliente.direccion||'').toUpperCase()}</td></tr>
-    <tr><td class="lbl">Teléfono</td><td class="val">${cliente.telefono||''}</td>
-        <td class="lbl">Correo Electrónico</td><td class="val">${cliente.email||''}</td></tr>
-    <tr><td class="lbl">D.P.I.</td><td class="val">${cliente.dpi||''}</td>
-        <td class="lbl">N.I.T.</td><td class="val">${cliente.nit||''}</td></tr>
+  <!-- ══ DATOS DEL COMPRADOR ══ -->
+  <div class="sec-lbl">Datos Generales del Promitente Comprador y/o Representante, Familiar o Gestor</div>
+  <table class="t-comprador">
+    <tr><td class="lbl">DATOS DEL COMPRADOR</td><td class="val"></td></tr>
+    <tr><td class="lbl">NOMBRES Y APELLIDOS:</td><td class="val"> ${nombreCliente}</td></tr>
+    <tr><td class="lbl">DIRECCION:</td><td class="val"> ${(cliente.direccion||'').toUpperCase()}</td></tr>
+    <tr><td class="lbl">TELEFONO:</td><td class="val"> ${cliente.telefono||''}</td></tr>
+    <tr><td class="lbl">DPI:</td><td class="val"> ${dpiCliente}</td></tr>
+    <tr><td class="lbl">NIT:</td><td class="val"> ${cliente.nit||''}</td></tr>
+    <tr><td class="lbl">CORREO ELECTRÓNICO:</td><td class="val"> ${cliente.email||''}</td></tr>
   </table>
 
-  <!-- IDENTIFICACIÓN DEL INMUEBLE -->
-  <div class="sec-title">Identificación del Inmueble</div>
-  <table>
+  <!-- ══ IDENTIFICACIÓN DEL INMUEBLE ══ -->
+  <div class="sec-lbl">Identificacion del Inmueble</div>
+  <table class="t-inmueble">
     <tr>
-      <th>Proyecto</th><th>Área m²</th><th>Desarrolladora</th><th>Ident. del Lote</th>
+      <th style="width:30%">PROYECTO</th>
+      <th style="width:25%">ÁREA METROS CUADRADOS</th>
+      <th style="width:30%">DESARROLLADORA</th>
     </tr>
     <tr>
-      <td>${proyNombre.toUpperCase()}</td>
-      <td style="text-align:center">${areaTxt}</td>
-      <td>EMPORIO SOCIEDAD ANÓNIMA</td>
-      <td style="text-align:center;font-weight:bold">Lote ${loteNum}</td>
+      <td>${proyNombre}</td>
+      <td style="text-align:center">${area}</td>
+      <td>EMPORIO SOCIEDAD ANONIMA</td>
     </tr>
     <tr>
-      <td colspan="4"><strong>Observaciones:</strong> FINCA MATRIZ REGISTRADA EN CHIMALTENANGO, A LA FECHA DESCRITA SE ENCUENTRA EN DILIGENCIAS PARA OBTENER REGISTRO CATASTRAL QUE POSTERIOR SE ESTARA COMPARTIENDO CON EL PROMITENTE COMPRADOR.</td>
-    </tr>
-  </table>
-
-  <!-- CONDICIONES DE PAGO -->
-  <div class="sec-title">Condiciones de Pago</div>
-  <table>
-    <tr>
-      <td class="lbl">Precio del Terreno</td>
-      <td class="val" style="font-weight:bold">${fmtMonto(p.precio)} ${precioStr}</td>
+      <td colspan="2"><b>IDENTIFICACIÓN DEL LOTE:</b> ${loteNum}</td>
     </tr>
     <tr>
-      <td class="lbl">(-) Enganche</td>
-      <td class="val">${fmtMonto(p.enganche)}</td>
-    </tr>
-    <tr>
-      <td class="lbl">(-) Otros Descuentos</td>
-      <td class="val">Q. ----</td>
-    </tr>
-    <tr>
-      <td class="lbl" style="font-weight:bold;font-size:10.5pt">Saldo a Pagar</td>
-      <td class="val" style="font-weight:bold;font-size:10.5pt">${fmtMonto(p.saldo)}</td>
-    </tr>
-    ${tasa>0?`<tr><td class="lbl">Tasa de Interés Anual</td><td class="val">${tasa}% (Variable anual)</td></tr>`:''}
-    <tr>
-      <td class="lbl">Inicio de Pagos</td>
-      <td class="val">Mes de ${mesInicioTxt} de ${anioLetras(anioInicio)}</td>
+      <td colspan="3" style="background:#f1f1f1;font-size:8.5pt"><b>OBSERVACIONES:</b> FINCA MATRIZ REGISTRADA EN CHIMALTENANGO, A LA FECHA DESCRITA SE ENCUENTRA EN DILIGENCIAS PARA OBTENER REGISTRO CATASTRAL QUE POSTERIOR SE ESTARA COMPARTIENDO CON EL PROMITENTE COMPRADOR.</td>
     </tr>
   </table>
 
-  <!-- PLAN DE PAGO -->
-  <div class="clause">${planTxt}</div>
+  <!-- ══ CONDICIONES DE PAGO ══ -->
+  <div class="sec-lbl">Condiciones de la Promesa de Compraventa al Contado o Financiado</div>
+  <table class="t-pago">
+    <tr>
+      <td style="width:55%;vertical-align:top">
+        <table style="width:100%;border-collapse:collapse;font-size:9.5pt">
+          <tr><td class="lbl">PRECIO DEL TERRENO</td><td class="val">${Q(p.precio)}</td></tr>
+          <tr><td class="lbl">(-) ENGANCHE</td><td class="val">${Q(p.enganche)}</td></tr>
+          <tr><td class="lbl">(-) OTROS DESCUENTOS</td><td class="val">Q. ----</td></tr>
+          <tr style="border-top:1.5px solid #000"><td><b>SALDO A PAGAR</b></td><td><b>${Q(p.saldo)}</b></td></tr>
+        </table>
+      </td>
+      <td style="width:45%;vertical-align:top;font-size:9pt;padding-left:10px">
+        <b>ENGANCHE FRACCIONADO</b><br><br>
+        FECHA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q. ---<br>
+        FECHA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q. ---<br>
+        FECHA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q. ---<br>
+        FECHA: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Q. ---
+      </td>
+    </tr>
+  </table>
 
-  <!-- CLÁUSULA DE ARRAS -->
-  <div class="clause">
-    EN CASO DE QUE EL PROMITENTE COMPRADOR RESCINDA LA PRESENTE PROMESA DE COMPRAVENTA DE BIEN INMUEBLE, PERDERÁ A FAVOR DE LA PROMITENTE VENDEDORA, EN CONCEPTO DE ARRAS, LA TOTALIDAD DE LO QUE HASTA ESE MOMENTO HAYA CANCELADO, SIN TENER DERECHO A DEVOLUCIÓN DE DINERO NI A NINGÚN TIPO DE INDEMNIZACIÓN. AMBAS PARTES, PROMITENTE Y PROMISARIO, ACEPTAN TODAS Y CADA UNA DE LAS CONDICIONES QUE SE ENCUENTRAN EN ESTE DOCUMENTO PROVISIONAL, HASTA QUE EL PROMISARIO ELEVE A ESCRITURA PÚBLICA ESTE CONTRATO EN FORMA DEFINITIVA. EN FE DE LO CUAL, FIRMAN DE CONFORMIDAD EL PRESENTE DOCUMENTO, EL DÍA ${diaLetras} DE ${mesNom} DEL AÑO ${anioLetras(anioNum)}.
+  <!-- ══ PLAN DE PAGO (texto con negrillas) ══ -->
+  <p class="plan-txt">${planHTML}</p>
+
+  <!-- ══ OTRAS CONDICIONES / ARRAS ══ -->
+  <p class="otras-cond">OTRAS CONDICIONES DE LA NEGOCIACION:</p>
+  <p class="arras-txt">${arrasHTML}</p>
+
+  <!-- ══ FIRMAS PÁGINA 1 ══ -->
+  <div class="firma-row">
+    <div class="firma-box">
+      <div class="firma-f">(F)</div>
+      <span class="firma-nombre">REPRESENTANTE EMPORIO SOCIEDAD ANONIMA</span>
+    </div>
+    <div class="firma-box">
+      <div class="firma-f">(F)</div>
+      <span class="firma-nombre">${nombreCliente}</span>
+    </div>
   </div>
 
-  <!-- FIRMAS -->
-  <div class="sigs">
-    <div class="sig-box">
-      <div class="sig-line">REPRESENTANTE EMPORIO SOCIEDAD ANÓNIMA<br><em>Promitente Vendedora</em></div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">${(cliente.nombre||'PROMITENTE COMPRADOR').toUpperCase()}<br><em>Promitente Comprador</em></div>
-    </div>
-  </div>
+  <!-- ══════════════════════════════════════════════════════
+       PÁGINA 2 — CONDICIONES GENERALES
+  ══════════════════════════════════════════════════════ -->
+  <div class="page2">
+    <div class="cg-title">Promesa de Compraventa Condiciones Generales</div>
+    <div class="cg-sub">Las presentes condiciones forman parte integral del contrato suscrito entre las partes y tienen plena validez legal.</div>
 
-  <!-- CONDICIONES GENERALES — PAGE 2 -->
-  <div class="condiciones">
-    <div class="cond-title">Promesa de Compraventa — Condiciones Generales</div>
-    <div class="cond-sub">Las presentes condiciones forman parte integral del contrato suscrito entre las partes y tienen plena validez legal.</div>
+    <p class="cg-item"><b>Promesa de Compra – Venta:</b> EL PROMITENTE COMPRADOR se obliga a comprar el inmueble en el precio, plazo y condiciones especificadas en este documento.</p>
 
-    <div class="cond-item"><strong>1. Promesa de Compra–Venta</strong>El Promitente Comprador se obliga a adquirir el inmueble descrito al precio, plazo y condiciones especificadas. Esta promesa es vinculante para ambas partes hasta que se eleve a escritura pública definitiva.</div>
-    <div class="cond-item"><strong>2. Cuotas e Intereses</strong>El Promitente Comprador se obliga a pagar el saldo pendiente a partir de la fecha indicada, en forma mensual, vencida y consecutiva. Los pagos se han calculado bajo el sistema de Cuotas Niveladas, que incluyen Capital e Intereses, aplicando la tasa de interés anual variable según condiciones estipuladas.</div>
-    <div class="cond-item"><strong>3. Pagos a Capital</strong>El Promitente Comprador podrá realizar pagos a cuenta del capital, en amortizaciones equivalentes a una anualidad sobre los pagos establecidos, siempre y cuando se encuentre al día. El propósito de estos pagos será reducir el plazo y/o el pago de Intereses, pero no para modificar el monto de la cuota nivelada mensual.</div>
-    <div class="cond-item"><strong>4. Recargos por Mora</strong>En caso de que el Promitente Comprador no haga efectivo los pagos respectivos en las fechas convenidas, tendrá como margen los siguientes cinco días calendario. Después de esta fecha deberá pagar en concepto de recargo por mora un 10% mensual sobre cada cuota mensual vencida. Por cheque rechazado se realizará un cobro de Q.150.00.</div>
-    <div class="cond-item"><strong>5. Lugar de Pago</strong>El Promitente Comprador acepta que todos los pagos se harán efectivos sin necesidad de cobro o requerimiento alguno, por medio de depósitos bancarios realizados a la cuenta o convenio especificado. El Promitente Comprador es responsable de reportar a la promitente vendedora cada una de las boletas de depósito mensualmente.</div>
-    <div class="cond-item"><strong>6. Posesión del Inmueble</strong>El Promitente Comprador podrá tomar posesión del inmueble al momento de firmar la escritura traslativa de dominio; no obstante, el promitente vendedor podrá definir la entrega hasta que estén totalmente terminadas las obras de urbanización. Al momento de tomar posesión, cualquier mejora es por cuenta del promitente comprador.</div>
-    <div class="cond-item"><strong>7. Gastos de Escrituración</strong>Será el promitente vendedor quien designe el Notario que redactará la escritura de compraventa. Los honorarios, gastos de escrituración y registro, el Impuesto al Valor Agregado (IVA) y el Impuesto Único sobre Inmuebles, serán pagados por cuenta del Promitente Comprador, así como cualquier otro gasto que se origine por esta negociación.</div>
-    <div class="cond-item"><strong>8. Traspasos o Desistimientos</strong>El Promitente Comprador podrá ceder su derecho de promitente a un tercero, siempre que el promitente vendedor dé su previa autorización escrita y que los pagos se encuentren al día. En caso de desistimiento voluntario deberá informarlo por escrito al promitente vendedor, quien resolverá de forma oportuna estableciendo la penalidad respectiva.</div>
-    <div class="cond-item"><strong>9. Obras de Urbanización Incluidas</strong>El promitente vendedor se compromete a entregar: 1. Calles pavimentadas; 2. Mojones de señalización; 3. Red de distribución interna de drenajes; 4. Red de distribución de energía eléctrica; 5. Red de distribución de agua; 6. Las demás que en su momento la promitente vendedora ofrezca para cada proyecto en específico.</div>
-    <div class="cond-item"><strong>10. Cargos No Incluidos en el Precio</strong>El precio consignado NO incluye el valor del título de agua, su instalación o el valor de otros servicios. El servicio de agua es individual; deberá pagar el valor de un título de agua para cada lote. Los impuestos fiscales o municipales serán pagados por el Promitente Comprador. El pago de mantenimiento tendrá un costo de Q.120.00 anuales. EL PROMITENTE COMPRADOR acepta desde ya pagar cualquier impuesto, tasa o arbitrio que la municipalidad respectiva o el estado, puedan cobrar en el futuro sobre el inmueble.</div>
-    <div class="cond-item"><strong>11. Limitaciones en el Uso del Lote</strong>El Promitente Comprador acepta y se obliga a: a) No subdividir el lote adquirido; b) No construir o instalar comercio o industria alguna; c) Avisar al promitente vendedor antes de construir; d) Hacer uso adecuado del sistema de drenajes de aguas negras; e) NO descargar el agua pluvial en la tubería de drenajes; f) No colocar cerca de alambre o similar. La violación dará derecho al promitente vendedor a cobrar multa igual a dos veces el valor del inmueble. EL PROMITENTE COMPRADOR acepta que estas limitaciones estén vigentes para él y sus sucesores a cualquier título.</div>
-    <div class="cond-item"><strong>12. Incumplimiento del Promitente Comprador</strong>Si el Promitente Comprador incumpliere las obligaciones que adquiere, acepta que el promitente vendedor pueda optar por: a) Obligar al promitente comprador a cumplir este contrato; b) Dejar sin efecto este contrato; c) Rescindir el presente contrato, y en consecuencia el Promitente Comprador perderá el dinero que hasta el momento haya entregado sin tener derecho a devolución ni a indemnización alguna.</div>
-    <div class="cond-item"><strong>13. Casos en que el Promitente Vendedor Podrá Dejar Sin Efecto Este Contrato</strong>El Promitente Comprador acepta que el promitente vendedor sin necesidad de aviso o notificación pueda dejar sin efecto la presente promesa en los casos siguientes: a) Si no cumpliere con pagar el enganche en la forma y plazos establecidos; b) Si llegare a tener en mora dos o más cuotas niveladas consecutivas; c) Si no cumpliere con firmar la escritura en los 15 días posteriores a la fecha que sea citado.</div>
-    <div class="cond-item"><strong>14. Domicilio y Aceptación</strong>El Promitente Comprador acepta expresamente las condiciones contenidas en este documento y para su interpretación, cumplimiento y ejecución, las partes se someten a los Tribunales de la ciudad de Guatemala. Declara expresamente como líquido exigible y de plazo vencido la suma por la que pudiere demandársele, y como buenas y exactas las cuentas que el promitente vendedor le presente.</div>
+    <p class="cg-item"><b>Cuotas e Intereses:</b> EL PROMITENTE COMPRADOR se obliga a pagar el saldo pendiente de pago, a partir de la fecha indicada, en forma mensual, vencida y consecutiva en la forma y modo que indique el promitente vendedor.</p>
 
-    <!-- FIRMAS CONDICIONES -->
-    <div class="sigs" style="margin-top:20px">
-      <div class="sig-box">
-        <div class="sig-line">REPRESENTANTE EMPORIO SOCIEDAD ANÓNIMA<br><em>Firma y Sello</em></div>
+    <p class="cg-item"><b>Pagos a Capital:</b> EL PROMITENTE COMPRADOR podrá realizar pagos a cuenta del capital, en amortizaciones equivalentes a una anualidad sobre los pagos establecidos en el presente documento, siempre y cuando se encuentre al día en sus pagos mensuales. El propósito de estos pagos será reducir el plazo y/o el pago de Intereses, pero no para modificar el monto de la cuota nivelada mensual.</p>
+
+    <p class="cg-item"><b>Recargos por Mora:</b> En caso de que EL PROMITENTE COMPRADOR no haga efectivo los pagos respectivos, en las fechas convenidas, tendrá como margen para pagar los siguientes cinco días calendario. Después de esta fecha deberá pagar en concepto de recargo por mora un 10% mensual sobre cada cuota mensual vencida. Por cheque rechazado se realizará un cobro de Q.150.00.</p>
+
+    <p class="cg-item"><b>Lugar de Pago:</b> EL PROMITENTE COMPRADOR acepta que todos los pagos a que se refiere este contrato se harán efectivos sin necesidad de cobro o requerimiento alguno, por medio de depósitos bancarios realizados a la cuenta o convenio especificado. El Promitente Comprador es responsable de reportar a la promitente vendedora cada una de las boletas de depósito mensualmente.</p>
+
+    <p class="cg-item"><b>Posesion del Inmueble:</b> EL PROMITENTE COMPRADOR podrá tomar posesión del inmueble al momento de firmar la escritura traslativa de dominio; no obstante, el promitente vendedor podrá definir la entrega hasta que estén totalmente terminadas las obras de urbanización. Al momento de tomar posesión, cualquier mejora es por cuenta del promitente comprador.</p>
+
+    <p class="cg-item"><b>Gastos de Escrituracion:</b> Será el promitente vendedor quien designe el Notario que redactará la escritura de compraventa. Los honorarios, gastos de escrituración y registro, el impuesto al valor agregado (IVA) y el Impuesto Único Sobre Inmuebles (IUSI), serán pagados por cuenta del Promitente Comprador, así como cualquier otro gasto que se origine por esta negociación.</p>
+
+    <p class="cg-item"><b>Traspasos o Desistimientos:</b> EL PROMITENTE COMPRADOR podrá ceder su derecho de promitente a un tercero, siempre que el promitente vendedor de su previa autorización escrita y que los pagos se encuentren al día. Los gastos que la operación de traspaso origine, incluyendo honorarios del notario, son por cuenta del promitente comprador.</p>
+
+    <p class="cg-item"><b>Obras de Urbanización Incluidas en el Precio del Lote:</b> El promitente vendedor se compromete a entregar las siguientes obras de urbanización: 1. Calles pavimentadas; 2. Mojones de señalización; 3. Red de distribución interna de drenajes; 4. Red de distribución de energía eléctrica; 5. Red de distribución de agua; 6. Las demás que en su momento la promitente vendedora ofrezca para cada proyecto en específico.</p>
+
+    <p class="cg-item"><b>Cargos No Incluidos en el Precio del Lote:</b> EL PROMITENTE COMPRADOR manifiesta que conoce el inmueble objeto de este contrato y que está enterado que el precio consignado NO incluye el valor del título de agua, su instalación o el valor de otros servicios. El servicio de agua es individual; deberá pagar el valor de un título de agua para cada lote. Los impuestos fiscales o municipales serán pagados por el Promitente Comprador. El pago de mantenimiento tendrá un costo de Q.120.00 anuales. EL PROMITENTE COMPRADOR acepta desde ya pagar cualquier impuesto, tasa o arbitrio que la municipalidad respectiva o el estado, puedan cobrar en el futuro sobre el inmueble.</p>
+
+    <p class="cg-item"><b>Limitaciones en el Uso del Lote:</b> EL PROMITENTE COMPRADOR acepta y se obliga a observar las siguientes limitaciones:
+      <ul class="lista">
+        <li>No subdividir el lote adquirido.</li>
+        <li>No construir o instalar comercio o industria alguna en el lote.</li>
+        <li>Avisar al promitente vendedor antes de construir para que este le verifique sus mojones y medidas.</li>
+        <li>Hacer uso adecuado del sistema de drenajes de aguas negras.</li>
+        <li>NO descargar el agua pluvial del inmueble en la tubería de drenajes, para evitar que colapse la misma.</li>
+        <li>No colocar cerca de alambre o similar en el lote.</li>
+      </ul>
+      EL PROMITENTE COMPRADOR acepta que estas limitaciones estén vigentes para él y sus sucesores a cualquier título. La violación de cualquiera de las limitaciones indicadas dará derecho al promitente vendedor a cobrar una multa igual a dos veces el valor del inmueble.
+    </p>
+
+    <p class="cg-item"><b>Incumplimiento del Promitente Comprador:</b> Si EL PROMITENTE COMPRADOR incumpliere las obligaciones que adquiere, acepta que el promitente vendedor pueda optar por: a) Obligar al promitente comprador a cumplir este contrato; b) Dejar sin efecto este contrato; c) Rescindir el presente contrato, y en consecuencia, EL PROMITENTE COMPRADOR perderá el dinero que hasta el momento haya entregado sin tener derecho a devolución de dinero ni a indemnización alguna.</p>
+
+    <p class="cg-item"><b>Casos en que el Promitente Vendedor Podra Dejar Sin Efecto Este Contrato:</b> EL PROMITENTE COMPRADOR acepta que el promitente vendedor sin necesidad de aviso o notificación pueda dejar sin efecto la presente promesa de compraventa en los casos siguientes: a) Si no cumpliere con pagar el enganche en la forma y plazos establecidos; b) Si llegare a tener en mora dos o más cuotas niveladas consecutivas; c) Si no cumpliere con firmar la escritura en los 15 días posteriores a la fecha que sea citado.</p>
+
+    <p class="cg-item"><b>Domicilio y Aceptacion:</b> EL PROMITENTE COMPRADOR acepta expresamente las condiciones contenidas en este documento y para su interpretación, cumplimiento y ejecución, las partes se someten a los Tribunales de la ciudad de Guatemala. Declara expresamente como líquido exigible y de plazo vencido la suma por la que pudiere demandársele, y como buenas y exactas las cuentas que el promitente vendedor le presente.</p>
+
+    <!-- Firmas página 2 -->
+    <div class="firma-row" style="margin-top:18px">
+      <div class="firma-box">
+        <div class="firma-f">(F)</div>
+        <span class="firma-nombre">REPRESENTANTE EMPORIO SOCIEDAD ANONIMA</span>
       </div>
-      <div class="sig-box">
-        <div class="sig-line">${(cliente.nombre||'PROMITENTE COMPRADOR').toUpperCase()}<br><em>Promitente Comprador</em></div>
+      <div class="firma-box">
+        <div class="firma-f">(F)</div>
+        <span class="firma-nombre">${nombreCliente}</span>
       </div>
     </div>
 
-    <!-- ACTA DE LEGALIZACIÓN NOTARIAL -->
-    <div class="notarial">
-      <div class="notarial-title">Acta de Legalización Notarial</div>
-      EN EL MUNICIPIO DE _________________________, DEPARTAMENTO DE _________________________, EL _____ DE _________________________ DEL AÑO _________________________, COMO NOTARIO DOY FE: QUE LAS FIRMAS QUE ANTECEDEN SON AUTÉNTICAS POR HABER SIDO PUESTAS EL DÍA DE HOY EN MI PRESENCIA POR ________________________________________, QUIEN ES PERSONA DE MI ANTERIOR CONOCIMIENTO Y QUIEN FIRMA EN REPRESENTACIÓN DE LA ENTIDAD EMPORIO, SOCIEDAD ANÓNIMA; Y POR ${(cliente.nombre||'___________________________________').toUpperCase()}, QUIEN SE IDENTIFICA CON DOCUMENTO PERSONAL DE IDENTIFICACIÓN CON CÓDIGO ÚNICO DE IDENTIFICACIÓN NÚMERO ${cliente.dpi||'________________________________'}, EXTENDIDO POR EL REGISTRO NACIONAL DE LAS PERSONAS DE LA REPÚBLICA DE GUATEMALA, Y QUIENES EN SEÑAL DE SU AUTENTICIDAD FIRMAN LA PRESENTE ACTA DE LEGALIZACIÓN, Y PARA MAYOR CERTEZA JURÍDICA DEJAN LA IMPRESIÓN DACTILAR DEL DEDO PULGAR DERECHO.
+    <!-- ══ ACTA DE LEGALIZACIÓN NOTARIAL ══ -->
+    <div class="acta-wrap">
+      <div class="acta-title">Acta de Legalización Notarial</div>
+      EN EL MUNICIPIO DE _________________________, DEPARTAMENTO DE _________________________, EL _____ DE _________________________ DEL AÑO _________________________, COMO NOTARIO DOY FE: QUE LAS FIRMAS QUE ANTECEDEN SON AUTENTICAS POR HABER SIDO PUESTAS EL DÍA DE HOY EN MI PRESENCIA POR ________________________________________, QUIEN ES PERSONA DE MI ANTERIOR CONOCIMIENTO Y QUIEN FIRMA EN REPRESENTACION DE LA ENTIDAD EMPORIO, SOCIEDAD ANÓNIMA; Y POR <b>${nombreCliente}</b>, QUIEN SE IDENTIFICA CON DOCUMENTO PERSONAL DE IDENTIFICACIÓN CON CÓDIGO UNICO DE IDENTIFICACIÓN NÚMERO <b>${dpiCliente}</b>, EXTENDIDO POR EL REGISTRO NACIONAL DE LAS PERSONAS DE LA REPÚBLICA DE GUATEMALA, Y QUIENES EN SEÑAL DE SU AUTENTICIDAD FIRMAN LA PRESENTE ACTA DE LEGALIZACIÓN, Y PARA MAYOR CERTEZA JURÍDICA DEJAN LA IMPRESIÓN DACTILAR DEL DEDO PULGAR DERECHO.
       <div class="ante-mi">ANTE MÍ:</div>
-      <div class="nota-sigs">
-        <div class="nota-sig-box">
-          <div class="nota-sig-line" style="border-top:1px solid #000;margin-top:60px;padding-top:4px">REPRESENTANTE EMPORIO SOCIEDAD ANÓNIMA<br>Firma y Sello</div>
+      <div class="firma-row" style="margin-top:16px">
+        <div class="firma-box">
+          <div class="firma-f" style="margin-bottom:40px">(F)</div>
+          <span class="firma-nombre">REPRESENTANTE EMPORIO SOCIEDAD ANONIMA</span><br>
+          <span style="font-size:8.5pt">Firma y Sello</span>
         </div>
-        <div class="nota-sig-box">
-          <div class="nota-sig-line" style="border-top:1px solid #000;margin-top:60px;padding-top:4px">NOTARIO AUTORIZANTE<br>Firma, Sello y No. de Colegiado</div>
+        <div class="firma-box">
+          <div class="firma-f" style="margin-bottom:40px">(F)</div>
+          <span class="firma-nombre">NOTARIO AUTORIZANTE</span><br>
+          <span style="font-size:8.5pt">Firma, Sello y No. de Colegiado</span>
         </div>
       </div>
     </div>
-  </div>
 
-</div>
+  </div><!-- /page2 -->
+</div><!-- /page -->
+<script>window.onload=function(){window.print();};</script>
 </body>
 </html>`;
 
@@ -1332,7 +1360,6 @@ async function printPromesa(id) {
   if(!win){toast('Permite ventanas emergentes para imprimir',false);return;}
   win.document.write(html);
   win.document.close();
-  win.onload = ()=>{ win.focus(); win.print(); };
 }
 
 // ─── PAGOS ────────────────────────────────────────────────────────────────
