@@ -1068,7 +1068,7 @@ async function cyclePromesa(id,est){
 async function printPromesa(id) {
   toast('Generando documento…');
   const {data:p, error} = await sb.from('promesas')
-    .select('*,clientes(*),proyectos:proyecto_id(nombre)')
+    .select('*,clientes(*)')
     .eq('id',id).single();
   if(error||!p){toast('Error al cargar la promesa',false);return;}
 
@@ -1130,7 +1130,7 @@ async function printPromesa(id) {
     'VEINTIOCHO','VEINTINUEVE','TREINTA','TREINTA Y UNO'][diaNum] || String(diaNum);
 
   const cliente = p.clientes || {};
-  const proyNombre = p.proyectos?.nombre || proyectosList.find(x=>x.id===p.proyecto_id)?.nombre || 'ALTOS DE BUENA VISTA';
+  const proyNombre = proyectosList.find(x=>x.id===p.proyecto_id)?.nombre || 'ALTOS DE BUENA VISTA';
   const loteNum = p.lote ? String(p.lote).replace(/[^0-9]/g,'') : '___';
   const areaTxt = p.area_m2 ? `${p.area_m2}.00 Metros Cuadrados` : '___________';
 
