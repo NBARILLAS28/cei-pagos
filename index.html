@@ -245,6 +245,10 @@ tr:hover td{background:rgba(255,255,255,.015)}
       Todos los Pagos
       <span class="nb red" id="nb-mora">—</span>
     </button>
+    <button class="nav-item" id="n-finanzas" onclick="go('finanzas')">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Finanzas Global
+    </button>
   </nav>
   <div class="sb-user">
     <div class="ua">NB</div>
@@ -319,6 +323,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <button class="tab" onclick="switchTab('proy-lotes')">Lotes</button>
         <button class="tab" onclick="switchTab('proy-promesas')">Promesas</button>
         <button class="tab" onclick="switchTab('proy-pagos')">Pagos</button>
+        <button class="tab" onclick="switchTab('proy-finanzas')">💰 Finanzas</button>
       </div>
 
       <!-- Tab: Dashboard del proyecto -->
@@ -385,6 +390,106 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
           <div id="tbl-ppagos-wrap"><div class="loading"><div class="spin"></div></div></div>
         </div>
+      </div>
+
+      <!-- Tab: Finanzas del proyecto -->
+      <div id="proy-finanzas" style="display:none">
+        <div class="stats s3" id="fin-stats-proy">
+          <div class="stat green"><div class="stat-lbl">Ingresos cobrados</div><div class="stat-val g" id="fp-ingresos">—</div><div class="stat-sub">pagos recibidos</div></div>
+          <div class="stat red"><div class="stat-lbl">Gastos registrados</div><div class="stat-val r" id="fp-gastos">—</div><div class="stat-sub">egresos del proyecto</div></div>
+          <div class="stat" id="fp-util-card"><div class="stat-lbl">Utilidad neta</div><div class="stat-val" id="fp-utilidad">—</div><div class="stat-sub" id="fp-util-sub">ingresos − gastos</div></div>
+        </div>
+        <!-- Gráfica ingresos vs gastos por mes -->
+        <div class="dash-card" style="margin-bottom:14px">
+          <div class="dash-card-ttl" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Ingresos vs Gastos — por mes</span>
+            <div style="display:flex;gap:14px;font-size:11px">
+              <span style="color:var(--green)">■ Ingresos</span>
+              <span style="color:var(--red)">■ Gastos</span>
+            </div>
+          </div>
+          <div id="fp-chart" style="height:180px;display:flex;align-items:flex-end;gap:6px;padding:0 4px 28px;position:relative;overflow-x:auto">
+            <div class="loading"><div class="spin"></div></div>
+          </div>
+        </div>
+        <!-- Gastos del proyecto -->
+        <div class="tbl-wrap">
+          <div class="tbl-hdr">
+            <span class="tbl-ttl">Gastos del Proyecto</span>
+            <div style="display:flex;gap:8px">
+              <select class="search" style="width:140px" id="fp-cat-filter" onchange="filterTbl('tbl-fp-gastos',this.value)">
+                <option value="">Todas las categorías</option>
+                <option>Publicidad</option><option>Notaría / Legal</option><option>Infraestructura</option>
+                <option>Comisiones</option><option>Administrativo</option><option>Otros</option>
+              </select>
+              <button class="btn btn-primary" style="font-size:11.5px" onclick="openGastoModal(currentProyecto?.id)">+ Nuevo Gasto</button>
+            </div>
+          </div>
+          <div id="tbl-fp-gastos-wrap"><div class="loading"><div class="spin"></div></div></div>
+        </div>
+        <!-- Desglose por categoría -->
+        <div class="dash-grid" style="margin-top:14px">
+          <div class="dash-card">
+            <div class="dash-card-ttl">Gastos por categoría</div>
+            <div id="fp-cat-bars"><div class="loading"><div class="spin"></div></div></div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-card-ttl">Resumen financiero</div>
+            <div id="fp-resumen" style="padding-top:4px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FINANZAS GLOBAL ══ -->
+    <div id="sec-finanzas" style="display:none">
+      <div class="stats" id="fin-stats-global">
+        <div class="stat green"><div class="stat-lbl">Ingresos totales</div><div class="stat-val g" id="fg-ingresos">—</div><div class="stat-sub">todos los proyectos</div></div>
+        <div class="stat red"><div class="stat-lbl">Gastos totales</div><div class="stat-val r" id="fg-gastos">—</div><div class="stat-sub">todos los proyectos</div></div>
+        <div class="stat" id="fg-util-card"><div class="stat-lbl">Utilidad neta global</div><div class="stat-val" id="fg-utilidad">—</div><div class="stat-sub">ingresos − gastos</div></div>
+        <div class="stat blue"><div class="stat-lbl">Gastos este mes</div><div class="stat-val b" id="fg-mes">—</div><div class="stat-sub">mes en curso</div></div>
+      </div>
+      <!-- Gráfica global -->
+      <div class="dash-card" style="margin-bottom:14px">
+        <div class="dash-card-ttl" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Ingresos vs Gastos — últimos 6 meses (Global)</span>
+          <div style="display:flex;gap:14px;font-size:11px">
+            <span style="color:var(--green)">■ Ingresos</span>
+            <span style="color:var(--red)">■ Gastos</span>
+          </div>
+        </div>
+        <div id="fg-chart" style="height:200px;display:flex;align-items:flex-end;gap:6px;padding:0 4px 28px;position:relative;overflow-x:auto">
+          <div class="loading"><div class="spin"></div></div>
+        </div>
+      </div>
+      <!-- Desglose por proyecto -->
+      <div class="dash-grid" style="margin-bottom:14px">
+        <div class="dash-card">
+          <div class="dash-card-ttl">Estado financiero por proyecto</div>
+          <div id="fg-por-proyecto"><div class="loading"><div class="spin"></div></div></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-ttl">Gastos por categoría (global)</div>
+          <div id="fg-cat-global"><div class="loading"><div class="spin"></div></div></div>
+        </div>
+      </div>
+      <!-- Tabla de todos los gastos -->
+      <div class="tbl-wrap">
+        <div class="tbl-hdr">
+          <span class="tbl-ttl">Todos los Gastos</span>
+          <div style="display:flex;gap:8px">
+            <select class="search" style="width:160px" id="fg-proy-filter" onchange="filterTbl('tbl-fg-gastos',this.value)">
+              <option value="">Todos los proyectos</option>
+            </select>
+            <select class="search" style="width:140px" onchange="filterTbl('tbl-fg-gastos',this.value)">
+              <option value="">Todas las categorías</option>
+              <option>Publicidad</option><option>Notaría / Legal</option><option>Infraestructura</option>
+              <option>Comisiones</option><option>Administrativo</option><option>Otros</option>
+            </select>
+            <button class="btn btn-primary" style="font-size:11.5px" onclick="openGastoModal(null)">+ Nuevo Gasto</button>
+          </div>
+        </div>
+        <div id="tbl-fg-gastos-wrap"><div class="loading"><div class="spin"></div></div></div>
       </div>
     </div>
 
@@ -586,6 +691,38 @@ tr:hover td{background:rgba(255,255,255,.015)}
   </div>
 </div>
 
+<!-- Modal: Nuevo Gasto -->
+<div class="backdrop" id="m-gasto">
+  <div class="modal sm">
+    <div class="mhdr">
+      <div><div class="mttl">Registrar Gasto</div><div class="msub" id="m-gasto-sub">Ingresa los datos del gasto</div></div>
+      <button class="mclose" onclick="closeModal('m-gasto')">✕</button>
+    </div>
+    <div class="fg g2">
+      <div class="field full"><label>Proyecto (opcional — dejar vacío para gasto global)</label>
+        <select id="g-proyecto"><option value="">— Gasto Global / Sin proyecto —</option></select>
+      </div>
+      <div class="field"><label>Categoría</label>
+        <select id="g-cat">
+          <option>Publicidad</option>
+          <option>Notaría / Legal</option>
+          <option>Infraestructura</option>
+          <option>Comisiones</option>
+          <option>Administrativo</option>
+          <option>Otros</option>
+        </select>
+      </div>
+      <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
+      <div class="field full"><label>Descripción</label><input id="g-desc" placeholder="Ej: Publicación en Facebook Ads"></div>
+      <div class="field full"><label>Monto (Q.)</label><input type="number" id="g-monto" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="faction">
+      <button class="btn btn-ghost" onclick="closeModal('m-gasto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGasto()">Guardar Gasto</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toast-msg"></span></div>
 
@@ -630,6 +767,7 @@ const titles = {
   proyecto: ['',''],
   clientes: ['Todos los Clientes','CEI Corporation'],
   'pagos-g': ['Todos los Pagos','CEI Corporation'],
+  finanzas: ['Finanzas Global','Estado Financiero · CEI Corporation'],
 };
 
 function go(sec, proyId=null) {
@@ -637,7 +775,7 @@ function go(sec, proyId=null) {
   const nid = document.getElementById('n-'+sec);
   if(nid) nid.classList.add('active');
 
-  ['dashboard','proyectos','proyecto','clientes','pagos-g'].forEach(s=>{
+  ['dashboard','proyectos','proyecto','clientes','pagos-g','finanzas'].forEach(s=>{
     const el=document.getElementById('sec-'+s);
     if(el) el.style.display = s===sec?'':'none';
   });
@@ -680,11 +818,11 @@ function openAdd() {
 
 function switchTab(tab) {
   currentTab = tab;
-  ['proy-dash','proy-lotes','proy-promesas','proy-pagos'].forEach(t=>{
+  ['proy-dash','proy-lotes','proy-promesas','proy-pagos','proy-finanzas'].forEach(t=>{
     document.getElementById(t).style.display = t===tab?'':'none';
   });
   document.querySelectorAll('.tab').forEach((b,i)=>{
-    const tabs=['proy-dash','proy-lotes','proy-promesas','proy-pagos'];
+    const tabs=['proy-dash','proy-lotes','proy-promesas','proy-pagos','proy-finanzas'];
     b.classList.toggle('active', tabs[i]===tab);
   });
   document.getElementById('btn-add').style.display = (tab==='proy-promesas'||tab==='proy-dash') ? '' : 'none';
@@ -695,6 +833,7 @@ function switchTab(tab) {
     if(tab==='proy-lotes') loadLotesDetalle(currentProyecto.id);
     if(tab==='proy-promesas') loadPromesasDetalle(currentProyecto.id);
     if(tab==='proy-pagos') loadPagosDetalle(currentProyecto.id);
+    if(tab==='proy-finanzas') loadFinanzasProy(currentProyecto.id);
   }
 }
 
@@ -703,6 +842,7 @@ async function loadSection(sec) {
   if(sec==='dashboard') await loadDashboard();
   if(sec==='proyectos') await loadProyectos();
   if(sec==='clientes') await loadClientes();
+  if(sec==='finanzas') await loadFinanzasGlobal();
   if(sec==='pagos-g') await loadPagosG();
 }
 
@@ -1483,6 +1623,267 @@ async function delPago(id){
   if(!confirm('¿Eliminar pago?')) return;
   const {error}=await sb.from('pagos').delete().eq('id',id);
   if(!error){toast('Eliminado');if(currentProyecto)loadPagosDetalle(currentProyecto.id);else loadPagosG();}
+}
+
+// ─── FINANZAS ─────────────────────────────────────────────────────────────
+const CATEGORIAS = ['Publicidad','Notaría / Legal','Infraestructura','Comisiones','Administrativo','Otros'];
+const CAT_COLORS = {'Publicidad':'#5e8de0','Notaría / Legal':'#c8a96e','Infraestructura':'#52c27a','Comisiones':'#e0b852','Administrativo':'#9b8de0','Otros':'#888'};
+
+function fmtMes(ym) {
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const [y,m] = ym.split('-');
+  return meses[parseInt(m)-1]+' '+y.slice(2);
+}
+
+function renderBarChart(containerId, data, height=160) {
+  // data = [{mes:'2026-09', ingresos:50000, gastos:20000}, ...]
+  const wrap = document.getElementById(containerId);
+  if(!data||!data.length){wrap.innerHTML='<div class="empty"><p>Sin datos para mostrar</p></div>';return;}
+  const maxVal = Math.max(...data.map(d=>Math.max(d.ingresos||0,d.gastos||0)),1);
+  wrap.innerHTML = data.map(d=>{
+    const hI = Math.round(((d.ingresos||0)/maxVal)*(height-4));
+    const hG = Math.round(((d.gastos||0)/maxVal)*(height-4));
+    return `<div style="flex:1;min-width:48px;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative">
+      <div style="display:flex;gap:2px;align-items:flex-end;height:${height}px">
+        <div title="Ingresos: ${fmtQ(d.ingresos||0)}" style="width:14px;height:${hI}px;background:var(--green);border-radius:3px 3px 0 0;opacity:.85;transition:opacity .15s;cursor:default" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.85"></div>
+        <div title="Gastos: ${fmtQ(d.gastos||0)}" style="width:14px;height:${hG}px;background:var(--red);border-radius:3px 3px 0 0;opacity:.85;transition:opacity .15s;cursor:default" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.85"></div>
+      </div>
+      <div style="font-size:9.5px;color:var(--t3);white-space:nowrap;position:absolute;bottom:-20px">${fmtMes(d.mes)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCatBars(containerId, gastosPorCat) {
+  const wrap = document.getElementById(containerId);
+  const total = Object.values(gastosPorCat).reduce((s,v)=>s+v,0)||1;
+  const sorted = Object.entries(gastosPorCat).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){wrap.innerHTML='<div class="empty"><p>Sin gastos registrados</p></div>';return;}
+  wrap.innerHTML = sorted.map(([cat,val])=>`
+    <div class="bar-row" style="margin-bottom:10px">
+      <span style="font-size:11px;color:var(--t2);width:120px;flex-shrink:0">${cat}</span>
+      <div class="bar-track" style="flex:1">
+        <div class="bar-fill" style="width:${Math.round(val/total*100)}%;background:${CAT_COLORS[cat]||'#888'};height:100%"></div>
+      </div>
+      <span style="font-size:11px;color:var(--tx);margin-left:8px;white-space:nowrap">${fmtQ(val)}</span>
+    </div>`).join('');
+}
+
+function agruparPorMes(items, campoFecha, campoMonto) {
+  const map = {};
+  items.forEach(it=>{
+    const mes = (it[campoFecha]||'').slice(0,7);
+    if(!mes) return;
+    if(!map[mes]) map[mes] = 0;
+    map[mes] += Number(it[campoMonto])||0;
+  });
+  return map;
+}
+
+function ultimos6Meses() {
+  const meses = [];
+  const hoy = new Date();
+  for(let i=5;i>=0;i--){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
+    meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  return meses;
+}
+
+// ── Finanzas de un proyecto ──
+async function loadFinanzasProy(proyId) {
+  const [
+    {data:pagos},
+    {data:gastos}
+  ] = await Promise.all([
+    sb.from('pagos').select('monto,fecha_pago,estado').in('promesa_id',
+      (await sb.from('promesas').select('id').eq('proyecto_id',proyId)).data?.map(p=>p.id)||[]),
+    sb.from('gastos').select('*').eq('proyecto_id',proyId).order('fecha',{ascending:false}),
+  ]);
+
+  const pagosPagados = (pagos||[]).filter(p=>p.estado==='Pagada');
+  const totalIngresos = pagosPagados.reduce((s,p)=>s+(p.monto||0),0);
+  const totalGastos = (gastos||[]).reduce((s,g)=>s+(g.monto||0),0);
+  const utilidad = totalIngresos - totalGastos;
+
+  document.getElementById('fp-ingresos').textContent = fmtQ(totalIngresos);
+  document.getElementById('fp-gastos').textContent = fmtQ(totalGastos);
+  document.getElementById('fp-utilidad').textContent = fmtQ(utilidad);
+  document.getElementById('fp-utilidad').className = 'stat-val '+(utilidad>=0?'g':'r');
+  document.getElementById('fp-util-card').className = 'stat '+(utilidad>=0?'green':'red');
+  document.getElementById('fp-util-sub').textContent = utilidad>=0 ? '✓ positivo' : '⚠ negativo';
+
+  // Gráfica
+  const meses = ultimos6Meses();
+  const ingMap = agruparPorMes(pagosPagados,'fecha_pago','monto');
+  const gasMap = agruparPorMes(gastos||[],'fecha','monto');
+  const chartData = meses.map(m=>({mes:m, ingresos:ingMap[m]||0, gastos:gasMap[m]||0}));
+  renderBarChart('fp-chart', chartData);
+
+  // Categorías
+  const porCat = {};
+  (gastos||[]).forEach(g=>{ porCat[g.categoria]=(porCat[g.categoria]||0)+(g.monto||0); });
+  renderCatBars('fp-cat-bars', porCat);
+
+  // Resumen
+  document.getElementById('fp-resumen').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;padding-top:4px">
+      <div class="bar-row"><span style="font-size:12px;color:var(--t2);flex:1">Ingresos cobrados</span><span style="font-size:13px;font-weight:600;color:var(--green)">${fmtQ(totalIngresos)}</span></div>
+      <div class="bar-row"><span style="font-size:12px;color:var(--t2);flex:1">Total gastos</span><span style="font-size:13px;font-weight:600;color:var(--red)">${fmtQ(totalGastos)}</span></div>
+      <div style="border-top:1px solid var(--b);margin:4px 0"></div>
+      <div class="bar-row"><span style="font-size:13px;font-weight:700;flex:1">Utilidad neta</span><span style="font-size:15px;font-weight:800;color:${utilidad>=0?'var(--green)':'var(--red)'}">${fmtQ(utilidad)}</span></div>
+      ${totalIngresos>0?`<div style="font-size:10.5px;color:var(--t3)">Margen: ${Math.round(utilidad/totalIngresos*100)}%</div>`:''}
+    </div>`;
+
+  // Tabla gastos
+  renderTblGastos('tbl-fp-gastos-wrap', gastos||[], true);
+}
+
+// ── Finanzas globales ──
+async function loadFinanzasGlobal() {
+  const [
+    {data:pagos},
+    {data:gastos}
+  ] = await Promise.all([
+    sb.from('pagos').select('monto,fecha_pago,estado,promesa_id'),
+    sb.from('gastos').select('*').order('fecha',{ascending:false}),
+  ]);
+
+  const pagosPagados = (pagos||[]).filter(p=>p.estado==='Pagada');
+  const totalIngresos = pagosPagados.reduce((s,p)=>s+(p.monto||0),0);
+  const totalGastos = (gastos||[]).reduce((s,g)=>s+(g.monto||0),0);
+  const utilidad = totalIngresos - totalGastos;
+
+  const hoy = new Date();
+  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const gastosMes = (gastos||[]).filter(g=>(g.fecha||'').startsWith(mesActual)).reduce((s,g)=>s+(g.monto||0),0);
+
+  document.getElementById('fg-ingresos').textContent = fmtQ(totalIngresos);
+  document.getElementById('fg-gastos').textContent = fmtQ(totalGastos);
+  document.getElementById('fg-utilidad').textContent = fmtQ(utilidad);
+  document.getElementById('fg-utilidad').className = 'stat-val '+(utilidad>=0?'g':'r');
+  document.getElementById('fg-util-card').className = 'stat '+(utilidad>=0?'green':'red');
+  document.getElementById('fg-mes').textContent = fmtQ(gastosMes);
+
+  // Gráfica global
+  const meses = ultimos6Meses();
+  const ingMap = agruparPorMes(pagosPagados,'fecha_pago','monto');
+  const gasMap = agruparPorMes(gastos||[],'fecha','monto');
+  const chartData = meses.map(m=>({mes:m, ingresos:ingMap[m]||0, gastos:gasMap[m]||0}));
+  renderBarChart('fg-chart', chartData, 170);
+
+  // Por proyecto
+  const wrap = document.getElementById('fg-por-proyecto');
+  if(proyectosList.length) {
+    const promesas = (await sb.from('promesas').select('id,proyecto_id')).data||[];
+    const promByProy = {};
+    promesas.forEach(pr=>{ if(!promByProy[pr.proyecto_id]) promByProy[pr.proyecto_id]=[]; promByProy[pr.proyecto_id].push(pr.id); });
+
+    const ingByProy = {};
+    pagosPagados.forEach(p=>{
+      const pr = promesas.find(x=>x.id===p.promesa_id);
+      if(pr){ ingByProy[pr.proyecto_id]=(ingByProy[pr.proyecto_id]||0)+(p.monto||0); }
+    });
+    const gastosByProy = {};
+    (gastos||[]).forEach(g=>{ if(g.proyecto_id) gastosByProy[g.proyecto_id]=(gastosByProy[g.proyecto_id]||0)+(g.monto||0); });
+
+    wrap.innerHTML = proyectosList.map(p=>{
+      const ing = ingByProy[p.id]||0;
+      const gas = gastosByProy[p.id]||0;
+      const ut = ing-gas;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--b)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${p.color||'var(--ac)'};flex-shrink:0"></div>
+        <div style="flex:1;font-size:12.5px;font-weight:500">${p.nombre}</div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--green)">${fmtQ(ing)}</div>
+          <div style="font-size:11px;color:var(--red)">-${fmtQ(gas)}</div>
+          <div style="font-size:12.5px;font-weight:700;color:${ut>=0?'var(--green)':'var(--red)'}">${fmtQ(ut)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    wrap.innerHTML = '<div class="empty"><p>Sin proyectos</p></div>';
+  }
+
+  // Categorías global
+  const porCat = {};
+  (gastos||[]).forEach(g=>{ porCat[g.categoria]=(porCat[g.categoria]||0)+(g.monto||0); });
+  renderCatBars('fg-cat-global', porCat);
+
+  // Filtro de proyectos en tabla
+  const sel = document.getElementById('fg-proy-filter');
+  if(sel) {
+    const existing = Array.from(sel.options).map(o=>o.value);
+    proyectosList.forEach(p=>{ if(!existing.includes(p.id)) { const o=document.createElement('option'); o.value=p.id; o.textContent=p.nombre; sel.appendChild(o); } });
+  }
+
+  // Tabla global
+  renderTblGastos('tbl-fg-gastos-wrap', gastos||[], false);
+}
+
+// ── Tabla gastos compartida ──
+function renderTblGastos(wrapperId, gastos, showDelBtn=true) {
+  const wrap = document.getElementById(wrapperId);
+  if(!gastos.length){wrap.innerHTML='<div class="empty"><p>Sin gastos registrados. Agrega el primer gasto con el botón "Nuevo Gasto".</p></div>';return;}
+  wrap.innerHTML = `<table id="${wrapperId.replace('-wrap','')}">
+    <thead><tr>
+      <th>Fecha</th><th>Categoría</th><th>Descripción</th>${!showDelBtn?'<th>Proyecto</th>':''}
+      <th style="text-align:right">Monto</th><th></th>
+    </tr></thead>
+    <tbody>
+      ${gastos.map(g=>`<tr>
+        <td class="td-mono">${g.fecha||'—'}</td>
+        <td><span class="pill" style="background:${CAT_COLORS[g.categoria]||'#888'}22;color:${CAT_COLORS[g.categoria]||'#888'}">${g.categoria}</span></td>
+        <td>${g.descripcion||'—'}</td>
+        ${!showDelBtn?`<td class="td-m">${proyectosList.find(p=>p.id===g.proyecto_id)?.nombre||'Global'}</td>`:''}
+        <td style="text-align:right;font-weight:600;color:var(--red)">${fmtQ(g.monto)}</td>
+        <td><div class="acts"><button class="ib" onclick="delGasto('${g.id}','${showDelBtn?'proy':'global'}')" title="Eliminar">🗑</button></div></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── Abrir modal gasto ──
+function openGastoModal(proyId=null) {
+  // Poblar select de proyectos
+  const sel = document.getElementById('g-proyecto');
+  sel.innerHTML = '<option value="">— Gasto Global / Sin proyecto —</option>';
+  proyectosList.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.nombre; sel.appendChild(o); });
+  if(proyId) sel.value = proyId;
+  // Fecha de hoy
+  const hoy = new Date();
+  document.getElementById('g-fecha').value = hoy.toISOString().slice(0,10);
+  document.getElementById('m-gasto-sub').textContent = proyId ? (proyectosList.find(p=>p.id===proyId)?.nombre||'') : 'Gasto Global';
+  openModal('m-gasto');
+}
+
+async function saveGasto() {
+  const monto = parseFloat(document.getElementById('g-monto').value);
+  if(!monto||monto<=0){toast('Ingresa un monto válido',false);return;}
+  const fecha = document.getElementById('g-fecha').value;
+  if(!fecha){toast('Selecciona una fecha',false);return;}
+  const proyId = document.getElementById('g-proyecto').value||null;
+  const {error} = await sb.from('gastos').insert({
+    proyecto_id: proyId,
+    categoria: document.getElementById('g-cat').value,
+    descripcion: document.getElementById('g-desc').value,
+    monto,
+    fecha,
+  });
+  if(error){toast('Error: '+error.message,false);return;}
+  toast('✓ Gasto registrado');
+  closeModal('m-gasto');
+  // Recargar la vista activa
+  if(currentTab==='proy-finanzas' && currentProyecto) loadFinanzasProy(currentProyecto.id);
+  else if(currentSec==='finanzas') loadFinanzasGlobal();
+}
+
+async function delGasto(id, ctx) {
+  if(!confirm('¿Eliminar este gasto?')) return;
+  const {error} = await sb.from('gastos').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,false);return;}
+  toast('Gasto eliminado');
+  if(ctx==='proy' && currentProyecto) loadFinanzasProy(currentProyecto.id);
+  else loadFinanzasGlobal();
 }
 
 // ─── CLIENTES ─────────────────────────────────────────────────────────────
